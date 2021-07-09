@@ -69,12 +69,13 @@ float V_high = 3.3;
 float V_low = 0;
 float Frequency;
 float Voltageout;
+float Voltagein;
 char Menu_Start1[] =
 		"\r\n0 ---> Sawtooth\r\n 1 ---> Sine wave\r\n 2 ---> Square wave\r\n";
 char Increase_f[] = " /Increase Frequency";
 char Decrease_f[] = " /Decrease Frequency";
 char saw_tooth[] =
-		"\r\nSaw tooth \r\n + Increase Frequency\r\n - Decrease Frequency\r\n v Set voltage\r\n 1 Slope Up\r\n 2 Slope Down x Select_waveform";
+		"\r\nSaw tooth \r\n + Increase Frequency\r\n - Decrease Frequency\r\n v Set voltage\r\n 1 Slope Up\r\n 2 Slope Down x Select_waveform\r\n";
 char set_voltage[] = "\r\nSet Voltage \r\n b V high\r\n n V low\r\n x Back\r\n";
 char set_dutycycle[] =
 		"\r\n+ Increase duty cycle\r\n - Decrease duty cycle\r\n x Back\r\n";
@@ -393,7 +394,8 @@ int main(void) {
 		}
 		static uint64_t timestamp = 0;
 		static uint64_t timestamp2 = 0;
-		if (micros() - timestamp > 1000) {
+		Voltagein = ADCin * 3.3 / 4096;
+		if (micros() - timestamp > 100) {//10 kHz
 			if (waveform == 1) {//saw
 				if (Slope == 1) {
 					if (micros() - timestamp2 <= (1 / Frequency) * 1000000) {
@@ -411,8 +413,8 @@ int main(void) {
 				}
 			} else if (waveform == 2) {//sin
 				if (micros() - timestamp2 <= ((1 / Frequency) * 1000000)) {
-					Sine_angle = ((micros() - timestamp2)/ ((1 / Frequency) * 1000000)) * 2 * 3.14;
-					Voltageout = ((sin(Sine_angle) + 1) * (V_high - V_low) / 2);
+					Sine_angle = ((micros() - timestamp2)/ ((1 / Frequency) * 1000000)) * 2 * 3.14;//rad
+					Voltageout = V_low+((sin(Sine_angle) + 1) * (V_high - V_low) / 2);
 				} else if (micros() - timestamp2 > ((1 / Frequency) * 1000000)) {
 					timestamp2 = micros();
 				}
@@ -430,10 +432,8 @@ int main(void) {
 					timestamp2 = micros();
 				}
 			}
-			dataOut = (int) (Voltageout * 4096 / 3.3);
-			if (hspi3.State == HAL_SPI_STATE_READY
-					&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin)
-							== GPIO_PIN_SET) {
+			dataOut = (int) (Voltageout * 4095 / 3.3);
+			if (hspi3.State == HAL_SPI_STATE_READY && HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin)== GPIO_PIN_SET) {
 				MCP4922SetOutput(DACConfig, dataOut);
 			}
 			timestamp = micros();
